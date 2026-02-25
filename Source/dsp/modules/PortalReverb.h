@@ -112,7 +112,7 @@ public:
 
             // Pre-delay (20ms default)
             const int preDLen = static_cast<int> (
-                juce::jmap (pSize->load(), 0.005, 0.08) * sampleRate);
+                juce::jmap (pSize->load(), 0.0f, 1.0f, 0.005f, 0.08f) * (float)sampleRate);
             preDelayBuffer[preDelayPos] = in;
             const int preTap = (preDelayPos - preDLen + static_cast<int>(preDelayBuffer.size()))
                                % static_cast<int>(preDelayBuffer.size());

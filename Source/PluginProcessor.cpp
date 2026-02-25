@@ -80,21 +80,18 @@ void SnotAudioProcessor::processBlock (AudioBuffer<float>& buffer,
         dsp::AudioBlock<float> (buffer));
 
     // Process through module graph
-    {
-        AudioBuffer<float> osBuffer (
-            oversampledBlock.getChannelPointer (0),
-            static_cast<int> (oversampledBlock.getNumChannels()),
-            static_cast<int> (oversampledBlock.getNumSamples()));
-        // Note: AudioBlock wraps data, no copy
+        // Process through module graph directly on the oversampled block
         moduleGraph->processGraph (oversampledBlock);
-    }
 
     // Oversampling downsample
     oversamplingChain->processSamplesDown (dsp::AudioBlock<float> (buffer));
 
     // Auto gain compensation
-    gainStager->process (dsp::ProcessContextReplacing<float> (
-        dsp::AudioBlock<float> (buffer)));
+    {
+        juce::dsp::AudioBlock<float> gainBlock (buffer);
+        juce::dsp::ProcessContextReplacing<float> gainCtx (gainBlock);
+        gainStager->process (gainCtx);
+    }
 
     // Master wet/dry blend
     const float mix = apvts.getRawParameterValue (ParamID::MIX)->load();
@@ -187,7 +184,7 @@ double SnotAudioProcessor::getTailLengthSeconds() const
 //==============================================================================
 AudioProcessorEditor* SnotAudioProcessor::createEditor()
 {
-    return new SnotAudioProcessorEditor (*this);
+    return new SnotWebEditor (*this);
 }
 
 //==============================================================================

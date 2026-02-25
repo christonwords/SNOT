@@ -48,8 +48,10 @@ public:
         {
             slots[i].name = "Macro " + juce::String (i + 1);
             const juce::Colour palette[] = {
-                0xff00ffcc, 0xffff00aa, 0xff7700ff, 0xff00aaff,
-                0xffff5500, 0xff00ff44, 0xffff2222, 0xffccff00
+                juce::Colour(0xff00ffcc), juce::Colour(0xffff00aa),
+                juce::Colour(0xff7700ff), juce::Colour(0xff00aaff),
+                juce::Colour(0xffff5500), juce::Colour(0xff00ff44),
+                juce::Colour(0xffff2222), juce::Colour(0xffccff00)
             };
             slots[i].colour = palette[i];
             pMacros[i] = apvts.getRawParameterValue ("macro_" + juce::String (i + 1));

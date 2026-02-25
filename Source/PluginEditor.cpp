@@ -125,7 +125,10 @@ void SnotWebEditor::registerParamListeners()
     // Register for every parameter so automation shows live in the UI
     const auto& params = apvts.processor.getParameters();
     for (auto* p : params)
-        apvts.addParameterListener (p->paramID, this);
+    {
+        if (auto* rap = dynamic_cast<juce::RangedAudioParameter*>(p))
+            apvts.addParameterListener (rap->getParameterID(), this);
+    }
 }
 
 void SnotWebEditor::unregisterParamListeners()
@@ -133,7 +136,10 @@ void SnotWebEditor::unregisterParamListeners()
     auto& apvts = proc.getAPVTS();
     const auto& params = apvts.processor.getParameters();
     for (auto* p : params)
-        apvts.removeParameterListener (p->paramID, this);
+    {
+        if (auto* rap = dynamic_cast<juce::RangedAudioParameter*>(p))
+            apvts.removeParameterListener (rap->getParameterID(), this);
+    }
 }
 
 //==============================================================================

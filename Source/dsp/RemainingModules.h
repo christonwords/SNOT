@@ -1,4 +1,6 @@
 #pragma once
+#include "ModuleGraph.h"
+#include "MacroEngine.h"
 // ─────────────────────────────────────────────────────────────────────────────
 // PitchSmearDelay.h
 // Delay with per-tap pitch smearing via modulated read pointer
@@ -342,7 +344,7 @@ public:
         samplesUntilMutation  = static_cast<int>(sampleRate / rate);
 
         // Mutate a selection of "safe" parameters
-        static const char* mutateTargets[] = {
+        const std::initializer_list<const char*> mutateTargets = {
             ParamID::PR_DRIFT, ParamID::PR_SHIMMER,
             ParamID::SWC_DEPTH, ParamID::SWC_WARP,
             ParamID::PSD_SMEAR, ParamID::SNM_MOTION,

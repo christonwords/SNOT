@@ -48,7 +48,7 @@ private:
     {
     public:
         explicit SnotBrowser (SnotWebEditor& owner)
-            : juce::WebBrowserComponent (false), owner (owner) {}
+            : juce::WebBrowserComponent (juce::WebBrowserComponent::Options{}), owner (owner) {}
 
         // Intercept snot:// scheme before the browser tries to navigate there
         bool pageAboutToLoad (const juce::String& url) override
