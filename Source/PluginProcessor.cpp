@@ -182,12 +182,6 @@ double SnotAudioProcessor::getTailLengthSeconds() const
 }
 
 //==============================================================================
-AudioProcessorEditor* SnotAudioProcessor::createEditor()
-{
-    return new SnotWebEditor (*this);
-}
-
-//==============================================================================
 void SnotAudioProcessor::getStateInformation (MemoryBlock& destData)
 {
     auto state = apvts.copyState();
