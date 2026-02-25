@@ -8,27 +8,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(JUCE)
 
 # ── Embed HTML as binary data ─────────────────────────────────────────────────
-# Generates: BinaryData::SNOT_UI_html  and  BinaryData::SNOT_UI_htmlSize
 juce_add_binary_data(SNOTResources
     SOURCES Resources/SNOT_UI.html
 )
 
 # ── Plugin ────────────────────────────────────────────────────────────────────
 juce_add_plugin(SNOT
-    COMPANY_NAME            "SNOT Audio"
+    COMPANY_NAME             "SNOTAudio"
+    BUNDLE_ID                "com.snotaudio.snot"
     PLUGIN_MANUFACTURER_CODE SNTA
-    PLUGIN_CODE             Snot
-    FORMATS                 VST3 AU Standalone
-    PRODUCT_NAME            "SNOT"
-    DESCRIPTION             "Interdimensional Multi-FX Portal"
-    IS_SYNTH                FALSE
-    NEEDS_MIDI_INPUT        TRUE
-    NEEDS_MIDI_OUTPUT       FALSE
-    IS_MIDI_EFFECT          FALSE
+    PLUGIN_CODE              Snot
+    FORMATS                  VST3 Standalone
+    PRODUCT_NAME             "SNOT"
+    DESCRIPTION              "Interdimensional Multi-FX Portal"
+    IS_SYNTH                 FALSE
+    NEEDS_MIDI_INPUT         TRUE
+    NEEDS_MIDI_OUTPUT        FALSE
+    IS_MIDI_EFFECT           FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    VST3_CATEGORIES         "Fx"
-    AU_MAIN_TYPE            kAudioUnitType_Effect
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    VST3_CATEGORIES          "Fx"
+    COPY_PLUGIN_AFTER_BUILD  FALSE
 )
 
 # ── Sources ───────────────────────────────────────────────────────────────────
@@ -60,12 +59,13 @@ endif()
 
 if(APPLE)
     set_target_properties(SNOT PROPERTIES
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.snotaudio.snot"
         MACOSX_DEPLOYMENT_TARGET "12.0"
     )
 endif()
 
 # ── Link ──────────────────────────────────────────────────────────────────────
+# Note: juce::recommended_warning_flags was removed — it doesn't exist in all
+# JUCE versions and is not required for a successful build.
 target_link_libraries(SNOT PRIVATE
     SNOTResources
     juce::juce_audio_basics
@@ -81,15 +81,13 @@ target_link_libraries(SNOT PRIVATE
     juce::juce_graphics
     juce::juce_gui_basics
     juce::juce_gui_extra
-    juce::recommended_warning_flags
 )
 
 # ── Optimisations ─────────────────────────────────────────────────────────────
 if(MSVC)
-    target_compile_options(SNOT PRIVATE /O2 /Ob3 /arch:AVX2 /fp:fast /GL)
-    target_link_options   (SNOT PRIVATE /LTCG)
+    target_compile_options(SNOT PRIVATE /O2 /Ob3 /arch:AVX2 /fp:fast)
 else()
-    target_compile_options(SNOT PRIVATE -O3 -march=native -ffast-math -funroll-loops)
+    target_compile_options(SNOT PRIVATE -O3 -ffast-math -funroll-loops)
 endif()
 
 message(STATUS "SNOT | HTML UI embedded | WebView2(Win) WKWebView(Mac)")
