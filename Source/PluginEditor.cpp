@@ -1,16 +1,5 @@
 #include "PluginEditor.h"
-
-// BinaryData — SNOT_UI_html is embedded at compile time by CMake
-// juce_add_binary_data(SNOTResources FILES Resources/SNOT_UI.html)
-// This gives us:  BinaryData::SNOT_UI_html  and  BinaryData::SNOT_UI_htmlSize
-namespace BinaryData
-{
-    // These are declared by the juce_add_binary_data target.
-    // If your IDE shows "undeclared" errors here, that's fine —
-    // they resolve at link time after CMake generates them.
-    extern const char*  SNOT_UI_html;
-    extern const int    SNOT_UI_htmlSize;
-}
+#include <BinaryData.h>
 
 using namespace juce;
 

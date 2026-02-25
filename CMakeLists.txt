@@ -42,6 +42,7 @@ target_include_directories(SNOT PRIVATE
     Source/dsp
     Source/dsp/modules
     Source/preset
+    $<TARGET_PROPERTY:SNOTResources,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 # ── Definitions ───────────────────────────────────────────────────────────────
