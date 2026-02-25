@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNOT</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap');
+
+  :root {
+    --void:      #030508;
+    --deep:      #060b12;
+    --panel:     #0a1220;
+    --rim:       #0e1a2e;
+    --cyan:      #00ffd4;
+    --cyan-dim:  #00a88c;
+    --magenta:   #ff00aa;
+    --violet:    #7700ff;
+    --amber:     #ff8800;
+    --plasma:    #ff3366;
+    --glo:       #aaff44;
+    --text:      #c8dde8;
+    --text-dim:  #4a6070;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--void);
+    font-family: 'Exo 2', 'Segoe UI', sans-serif;
+    color: var(--text);
+    user-select: none;
+    cursor: default;
+  }
+
+  /* ── PORTAL CANVAS ── */
+  #portalCanvas {
+    position: fixed; inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── SHELL ── */
+  .shell {
+    position: relative; z-index: 1;
+    width: 100vw; height: 100vh;
+    display: grid;
+    grid-template-rows: 54px 1fr 78px;
+    grid-template-columns: 210px 1fr 236px;
+    grid-template-areas:
+      "hdr  hdr  hdr"
+      "side main insp"
+      "foot foot foot";
+  }
+
+  /* ── HEADER ── */
+  .hdr {
+    grid-area: hdr;
+    display: flex; align-items: center;
+    padding: 0 18px; gap: 20px;
+    background: linear-gradient(90deg,#040c1a,#06101e 50%,#040c1a);
+    border-bottom: 1px solid var(--rim);
+    position: relative; z-index: 10;
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900; font-size: 26px;
+    letter-spacing: 8px;
+    color: var(--cyan);
+    text-shadow: 0 0 12px #00ffd488, 0 0 40px #00ffd422;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .logo em { color: var(--magenta); font-style: normal; }
+
+  .tagline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8.5px; letter-spacing: 2px;
+    color: var(--text-dim); text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .hdr-center {
+    flex: 1; display: flex; align-items: center;
+    justify-content: center; gap: 14px;
+  }
+
+  /* Preset strip */
+  .preset-strip {
+    display: flex; align-items: center; gap: 6px;
+    background: #060f1c; border: 1px solid var(--rim);
+    border-radius: 6px; padding: 5px 12px; min-width: 210px;
+  }
+  .preset-arrow {
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 14px; padding: 0 6px;
+    transition: color .15s;
+  }
+  .preset-arrow:hover { color: var(--cyan); }
+  .preset-name {
+    font-family: 'Orbitron', monospace; font-size: 10.5px;
+    font-weight: 700; color: var(--cyan); letter-spacing: 1px;
+    flex: 1; text-align: center; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Mood tags */
+  .tags { display: flex; gap: 4px; }
+  .tag {
+    font-size: 8px; font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 20px; border: 1px solid;
+    cursor: pointer; transition: all .15s;
+  }
+  .tag.spooky   { color:#aa88ff; border-color:#aa88ff44; }
+  .tag.ethereal { color:var(--cyan); border-color:var(--cyan-dim); }
+  .tag.dark     { color:#5588aa; border-color:#5588aa44; }
+  .tag.glo      { color:var(--glo); border-color:#aaff4444; }
+  .tag.abyss    { color:var(--magenta); border-color:#ff00aa44; }
+  .tag.active   { background:currentColor !important; color:var(--void) !important; }
+
+  /* Master knobs in header */
+  .hdr-right {
+    display: flex; align-items: center; gap: 14px; margin-left: auto;
+  }
+  .knob-cell {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 3px;
+    cursor: ns-resize;
+  }
+  .knob-cell canvas { display: block; }
+  .knob-lbl {
+    font-size: 8px; font-family: 'Share Tech Mono', monospace;
+    color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* ── SIDEBAR ── */
+  .side {
+    grid-area: side;
+    background: #060d18;
+    border-right: 1px solid var(--rim);
+    display: flex; flex-direction: column;
+    overflow-y: auto; overflow-x: hidden;
+  }
+  .side::-webkit-scrollbar { width: 3px; }
+  .side::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 2px; }
+
+  .sec-title {
+    font-family: 'Orbitron', monospace; font-size: 8px;
+    font-weight: 700; letter-spacing: 3px;
+    color: var(--text-dim); text-transform: uppercase;
+    padding: 10px 14px 5px;
+  }
+
+  .mod-item {
+    display: flex; align-items: center;
+    padding: 7px 14px; gap: 9px;
+    cursor: pointer; transition: background .15s;
+    border-left: 2px solid transparent;
+  }
+  .mod-item:hover { background: #0a1830; }
+  .mod-item.active { background: #0c1e38; border-left-color: var(--cyan); }
+  .mod-item.active .mod-name { color: var(--cyan); }
+
+  .mod-orb {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; border: 1px solid; flex-shrink: 0;
+    position: relative;
+  }
+  .mod-orb::after {
+    content: ''; position: absolute; inset: -4px;
+    border-radius: 50%; border: 1px solid currentColor;
+    opacity: .18; animation: opulse 3s ease-in-out infinite;
+  }
+  @keyframes opulse {
+    0%,100%{transform:scale(1);opacity:.18}50%{transform:scale(1.15);opacity:.35}
+  }
+  .mod-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10.5px; color: var(--text); flex: 1;
+  }
+
+  /* Enable toggle */
+  .tog {
+    width: 26px; height: 13px; border-radius: 7px;
+    border: 1px solid #1a3050; background: #040a12;
+    position: relative; cursor: pointer;
+    transition: all .2s; flex-shrink: 0;
+  }
+  .tog.on { border-color: var(--cyan); background: #00ffd420; box-shadow: 0 0 7px #00ffd440; }
+  .tog::after {
+    content: ''; position: absolute;
+    width: 9px; height: 9px; border-radius: 50%;
+    top: 1px; left: 1px; background: #2a4060; transition: all .2s;
+  }
+  .tog.on::after { left: 14px; background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+
+  /* ── MACRO SECTION ── */
+  .macro-sec { padding: 10px 14px; border-top: 1px solid var(--rim); margin-top: auto; }
+  .macro-grid {
+    display: grid; grid-template-columns: repeat(4,1fr);
+    gap: 6px; margin-top: 6px;
+  }
+  .macro-cell {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 3px; cursor: ns-resize;
+  }
+  .macro-cell canvas { display: block; }
+  .macro-label {
+    font-size: 7.5px; font-family: 'Share Tech Mono', monospace;
+    color: var(--text-dim); text-align: center;
+    text-transform: uppercase; letter-spacing: .5px;
+    max-width: 46px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── MAIN NODE CANVAS ── */
+  .main {
+    grid-area: main; position: relative; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 50%, #060f1c 0%, #030508 70%);
+  }
+  .main::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle,#0e2035 1px,transparent 1px);
+    background-size: 30px 30px; opacity: .35; pointer-events: none;
+  }
+  #nodeSvg { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+
+  /* Cables */
+  .cable     { fill:none; stroke-width:1.8; stroke-linecap:round; opacity:.55; }
+  .cable-glow{ fill:none; stroke-width:6;   stroke-linecap:round; opacity:.12; }
+  .cable-flow{
+    fill:none; stroke-width:3.5; stroke-linecap:round; opacity:.75;
+    stroke-dasharray: 4 56; animation: flow 1.8s linear infinite;
+  }
+  @keyframes flow { to { stroke-dashoffset:-60; } }
+
+  /* FX Orbs */
+  .orb {
+    position: absolute; display: flex; flex-direction: column;
+    align-items: center; cursor: grab;
+    transform: translate(-50%,-50%);
+  }
+  .orb:active { cursor: grabbing; }
+  .orb-body {
+    width: 68px; height: 68px; border-radius: 50%;
+    border: 1.5px solid; display: flex; align-items: center;
+    justify-content: center; font-size: 20px; position: relative;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.06), transparent 60%);
+    transition: box-shadow .25s;
+  }
+  .orb.selected .orb-body { box-shadow: 0 0 0 2px var(--cyan), 0 0 28px #00ffd430 !important; }
+  .orb-body::before {
+    content:''; position:absolute; inset:-6px; border-radius:50%;
+    border:1px solid currentColor; opacity:.14;
+    animation:oring 4s ease-in-out infinite;
+  }
+  .orb-body::after {
+    content:''; position:absolute; inset:-13px; border-radius:50%;
+    border:1px solid currentColor; opacity:.06;
+    animation:oring 4s ease-in-out infinite .6s;
+  }
+  @keyframes oring{0%,100%{transform:scale(1);opacity:.14}50%{transform:scale(1.1);opacity:.28}}
+  .orb-dot {
+    width:6px;height:6px;border-radius:50%;background:currentColor;
+    position:absolute;top:5px;right:5px;box-shadow:0 0 5px currentColor;
+  }
+  .orb-lbl {
+    font-family:'Share Tech Mono',monospace; font-size:8px;
+    letter-spacing:.8px; text-transform:uppercase;
+    color:var(--text-dim); margin-top:5px; text-align:center; max-width:80px;
+  }
+  .orb.disabled .orb-body { opacity:.35; }
+  .orb.disabled .orb-dot  { display:none; }
+
+  /* ── INSPECTOR ── */
+  .insp {
+    grid-area: insp;
+    background: #060d18; border-left: 1px solid var(--rim);
+    display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+  }
+  .insp::-webkit-scrollbar { width: 3px; }
+  .insp::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 2px; }
+
+  .insp-hdr {
+    padding: 12px 14px 9px; border-bottom: 1px solid var(--rim);
+    flex-shrink: 0; position: relative;
+  }
+  .insp-hdr::before {
+    content:''; position:absolute; left:0; top:0; bottom:0;
+    width:2px; background:var(--mod-col, var(--cyan));
+  }
+  .insp-title {
+    font-family:'Orbitron',monospace; font-size:11.5px;
+    font-weight:700; letter-spacing:2px;
+    color: var(--mod-col, var(--cyan));
+  }
+  .insp-body { padding: 10px 14px; display:flex; flex-direction:column; gap:12px; }
+
+  .param-row { display:flex; flex-direction:column; gap:4px; }
+  .param-hdr { display:flex; justify-content:space-between; }
+  .param-name {
+    font-family:'Share Tech Mono',monospace; font-size:9px;
+    letter-spacing:1px; text-transform:uppercase; color:var(--text-dim);
+  }
+  .param-val {
+    font-family:'Orbitron',monospace; font-size:9px;
+    font-weight:700; color: var(--mod-col, var(--cyan));
+  }
+
+  input[type=range] {
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:3px; border-radius:2px;
+    background:var(--rim); outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:var(--mod-col,var(--cyan));
+    box-shadow:0 0 7px var(--mod-col,var(--cyan));
+    border:2px solid var(--void); cursor:pointer;
+  }
+
+  /* ── FOOTER ── */
+  .foot {
+    grid-area: foot; background: #040b16;
+    border-top: 1px solid var(--rim);
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    align-items: center; padding: 0 16px; gap: 14px;
+  }
+
+  .status {
+    display:flex; align-items:center; gap:7px;
+    font-family:'Share Tech Mono',monospace; font-size:8.5px;
+    color:var(--text-dim); letter-spacing:1.5px;
+  }
+  .status-dot {
+    width:6px;height:6px;border-radius:50%;
+    background:var(--glo); box-shadow:0 0 5px var(--glo);
+    animation:blink 2s ease-in-out infinite;
+  }
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+  #specCanvas { display:block; width:100%; height:54px; border-radius:3px; }
+
+  .foot-right {
+    display:flex; align-items:center; gap:10px; justify-content:flex-end;
+  }
+  .os-sel {
+    background:#060f1c; border:1px solid var(--rim); border-radius:4px;
+    color:var(--cyan); font-family:'Share Tech Mono',monospace;
+    font-size:9.5px; padding:3px 8px; cursor:pointer; outline:none;
+    letter-spacing:1px;
+  }
+  .ver { font-family:'Share Tech Mono',monospace; font-size:8px; color:var(--text-dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+
+<canvas id="portalCanvas"></canvas>
+
+<div class="shell">
+
+  <!-- HEADER -->
+  <header class="hdr">
+    <div>
+      <div class="logo">SN<em>O</em>T</div>
+      <div class="tagline">Interdimensional Multi-FX</div>
+    </div>
+
+    <div class="hdr-center">
+      <div class="preset-strip">
+        <button class="preset-arrow" onclick="prevPreset()">◂</button>
+        <div class="preset-name" id="presetName">Abyss Gate</div>
+        <button class="preset-arrow" onclick="nextPreset()">▸</button>
+      </div>
+      <div class="tags">
+        <span class="tag abyss active"   onclick="this.classList.toggle('active')">Abyss</span>
+        <span class="tag dark active"    onclick="this.classList.toggle('active')">Dark</span>
+        <span class="tag ethereal"       onclick="this.classList.toggle('active')">Ethereal</span>
+        <span class="tag spooky"         onclick="this.classList.toggle('active')">Spooky</span>
+        <span class="tag glo"            onclick="this.classList.toggle('active')">Glo</span>
+      </div>
+    </div>
+
+    <div class="hdr-right">
+      <div class="knob-cell" id="mixKnobCell" data-param="master_mix" data-val="0.85">
+        <canvas id="mixKnob" width="38" height="38"></canvas>
+        <span class="knob-lbl">Mix</span>
+      </div>
+      <div class="knob-cell" id="outKnobCell" data-param="master_gain" data-val="0.7">
+        <canvas id="outKnob" width="38" height="38"></canvas>
+        <span class="knob-lbl">Out</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="side" id="sidebar">
+    <div class="sec-title">FX Chain</div>
+    <!-- filled by JS -->
+    <div class="macro-sec">
+      <div class="sec-title" style="padding:0 0 5px">Macros</div>
+      <div class="macro-grid" id="macroGrid"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainArea">
+    <svg id="nodeSvg"></svg>
+    <!-- orbs injected by JS -->
+  </main>
+
+  <!-- INSPECTOR -->
+  <div class="insp" id="inspector">
+    <div class="insp-hdr">
+      <div class="insp-title" id="inspTitle">Portal Reverb</div>
+    </div>
+    <div class="insp-body" id="inspBody"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="status">
+      <div class="status-dot"></div>
+      <span id="statusTxt">44100Hz · STEREO</span>
+    </div>
+    <canvas id="specCanvas"></canvas>
+    <div class="foot-right">
+      <select class="os-sel" id="osSel" onchange="sendParam('oversample_mode', this.selectedIndex)">
+        <option>1× OS</option>
+        <option selected>2× OS</option>
+        <option>4× OS</option>
+        <option>8× OS</option>
+      </select>
+      <span class="ver">SNOT v1.0 · VST3/AU</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════
+//  BRIDGE  —  JavaScript ↔ C++ (JUCE WebBrowserComponent)
+//
+//  JS → C++ :  navigate to  snot://setparam/{paramID}/{normValue}
+//              navigate to  snot://preset/{direction}   (prev/next)
+//              navigate to  snot://module/{key}/{enabled}
+//
+//  C++ → JS :  calls  window.SNOT.updateParam(paramID, normValue)
+//              calls  window.SNOT.updateSpectrum(base64FloatArray)
+//              calls  window.SNOT.updatePreset(name)
+// ═══════════════════════════════════════════════════════════════════
+function sendParam (paramID, normValue) {
+  const v = Math.max(0, Math.min(1, parseFloat(normValue)));
+  // JUCE intercepts this navigation in pageAboutToLoad()
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = `snot://setparam/${encodeURIComponent(paramID)}/${v.toFixed(6)}`;
+  document.body.appendChild(iframe);
+  setTimeout(() => iframe.remove(), 100);
+}
+
+function sendPreset (dir) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = `snot://preset/${dir}`;
+  document.body.appendChild(iframe);
+  setTimeout(() => iframe.remove(), 100);
+}
+
+function sendModuleToggle (key, enabled) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = `snot://module/${key}/${enabled ? 1 : 0}`;
+  document.body.appendChild(iframe);
+  setTimeout(() => iframe.remove(), 100);
+}
+
+// Exposed to C++ — called via evaluateJavascript()
+window.SNOT = {
+  updateParam (paramID, normValue) {
+    // Find any slider bound to this param and update it
+    const slider = document.querySelector(`[data-param="${paramID}"]`);
+    if (slider && slider.tagName === 'INPUT') {
+      slider.value = normValue * 100;
+      updateSliderBg(slider);
+      updateValLabel(slider, normValue);
+    }
+    // Update header knobs
+    if (paramID === 'master_mix')  { paramStore['master_mix']  = normValue; drawKnob(document.getElementById('mixKnob'), normValue, '#00ffd4'); }
+    if (paramID === 'master_gain') { paramStore['master_gain'] = normValue; drawKnob(document.getElementById('outKnob'), normValue, '#ff00aa'); }
+  },
+
+  updateSpectrum (floats) {
+    // floats is a JS array pushed from C++ directly
+    if (Array.isArray(floats)) extSpecData = floats;
+  },
+
+  updatePreset (name) {
+    document.getElementById('presetName').textContent = name;
+  },
+
+  setStatus (text) {
+    document.getElementById('statusTxt').textContent = text;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  DATA DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════
+const MODULES = [
+  { key:'pr',  name:'Portal Reverb',      col:'#00ffd4', emoji:'🌀', en:true,
+    params:[
+      {id:'pr_size',    label:'Size'},    {id:'pr_decay',   label:'Decay'},
+      {id:'pr_drift',   label:'Drift'},   {id:'pr_shimmer', label:'Shimmer'},
+      {id:'pr_damping', label:'Damping'}, {id:'pr_mix',     label:'Mix'},
+    ]},
+  { key:'swc', name:'Spectral Warp',       col:'#aa44ff', emoji:'✦', en:true,
+    params:[
+      {id:'swc_depth',  label:'Depth'},  {id:'swc_rate',   label:'Rate'},
+      {id:'swc_voices', label:'Voices'}, {id:'swc_warp',   label:'Warp'},
+      {id:'swc_mix',    label:'Mix'},
+    ]},
+  { key:'psd', name:'Pitch Smear Delay',   col:'#00aaff', emoji:'⟳', en:true,
+    params:[
+      {id:'psd_time',     label:'Time'},     {id:'psd_feedback', label:'Feedback'},
+      {id:'psd_smear',    label:'Smear'},    {id:'psd_mix',      label:'Mix'},
+    ]},
+  { key:'gf',  name:'Gravity Filter',      col:'#ffaa00', emoji:'◉', en:true,
+    params:[
+      {id:'gf_freq',  label:'Freq'},  {id:'gf_reso',  label:'Reso'},
+      {id:'gf_curve', label:'Curve'},
+    ]},
+  { key:'pd',  name:'Plasma Distortion',   col:'#ff3366', emoji:'⚡', en:false,
+    params:[
+      {id:'pd_drive',     label:'Drive'},     {id:'pd_character', label:'Character'},
+      {id:'pd_bias',      label:'Bias'},      {id:'pd_mix',       label:'Mix'},
+    ]},
+  { key:'h8',  name:'808 Inflator',         col:'#aaff44', emoji:'◈', en:false,
+    params:[
+      {id:'h8_drive', label:'Drive'}, {id:'h8_punch', label:'Punch'},
+      {id:'h8_bloom', label:'Bloom'}, {id:'h8_mix',   label:'Mix'},
+    ]},
+  { key:'snm', name:'Neural Motion',        col:'#ff00aa', emoji:'⊕', en:true,
+    params:[
+      {id:'snm_width',  label:'Width'},  {id:'snm_motion', label:'Motion'},
+      {id:'snm_rate',   label:'Rate'},
+    ]},
+  { key:'tg',  name:'Texture Gen',          col:'#00ffaa', emoji:'≋', en:false,
+    params:[
+      {id:'tg_density',   label:'Density'},   {id:'tg_character', label:'Character'},
+      {id:'tg_mix',       label:'Mix'},
+    ]},
+  { key:'fc',  name:'Freeze Capture',       col:'#88ccff', emoji:'❄', en:false,
+    params:[
+      {id:'fc_size',  label:'Size'},  {id:'fc_pitch', label:'Pitch'},
+      {id:'fc_mix',   label:'Mix'},
+    ]},
+  { key:'me',  name:'Mutation Engine',      col:'#ffcc00', emoji:'⚙', en:false,
+    params:[
+      {id:'me_amount',    label:'Amount'},    {id:'me_rate',      label:'Rate'},
+      {id:'me_character', label:'Character'},
+    ]},
+];
+
+const PRESETS = [
+  'Abyss Gate','Ghost Frequency','Jeezy Void','Plasma String',
+  '808 Inflated','Frozen Portal','Drift Dimension','Spectral Specter',
+  'Neural Wash','Mutant Lead','Portal Master','Dark Choir',
+  'Cinematic Sweep','Glo Bounce','Alien Tape','Void Static',
+];
+let presetIdx = 0;
+
+const MACROS = [
+  {name:'Portal',  val:0.3, col:'#00ffd4', param:'macro_1'},
+  {name:'Warp',    val:0.6, col:'#aa44ff', param:'macro_2'},
+  {name:'Drift',   val:0.2, col:'#ff00aa', param:'macro_3'},
+  {name:'Shimmer', val:0.4, col:'#ffaa00', param:'macro_4'},
+  {name:'Mutate',  val:0.1, col:'#ffcc00', param:'macro_5'},
+  {name:'Plasma',  val:0.0, col:'#ff3366', param:'macro_6'},
+  {name:'Bloom',   val:0.5, col:'#aaff44', param:'macro_7'},
+  {name:'Freeze',  val:0.0, col:'#88ccff', param:'macro_8'},
+];
+
+const SERIAL_CABLES = [
+  ['gf','swc'],['swc','psd'],['psd','pr'],
+  ['pr','pd'],['pd','snm'],['snm','h8'],
+  ['h8','tg'],['tg','fc'],['fc','me'],
+];
+
+// Default orb positions (fractional of main area)
+const ORB_POSITIONS = {
+  gf:  [0.09, 0.12], swc: [0.32, 0.12], psd: [0.55, 0.12], pr:  [0.78, 0.12],
+  pd:  [0.09, 0.52], snm: [0.32, 0.52], h8:  [0.55, 0.52], tg:  [0.78, 0.52],
+  fc:  [0.18, 0.82], me:  [0.5,  0.82],
+};
+
+// Live param store (norm 0-1)
+const paramStore = {};
+MODULES.forEach(m => m.params.forEach(p => { paramStore[p.id] = 0.5; }));
+paramStore['master_mix']  = 0.85;
+paramStore['master_gain'] = 0.7;
+
+// ═══════════════════════════════════════════════════════════════════
+//  PORTAL BACKGROUND
+// ═══════════════════════════════════════════════════════════════════
+const portalCanvas = document.getElementById('portalCanvas');
+const portalCtx    = portalCanvas.getContext('2d');
+let   portalT      = 0;
+
+const rings = Array.from({length:8},(_,i)=>({
+  r: 55 + i*72, speed: 0.0003+i*0.00013,
+  phase: i*Math.PI*0.42, opacity: 0.058-i*0.005,
+  col: i%2===0?'#00ffd4':'#7700ff',
+}));
+const stars = Array.from({length:70},()=>({
+  x:Math.random(), y:Math.random(), r:Math.random()*1.2+0.2, tw:Math.random()*6.28
+}));
+
+function drawPortal () {
+  const W=portalCanvas.width=window.innerWidth, H=portalCanvas.height=window.innerHeight;
+  const cx=W/2, cy=H/2;
+  portalCtx.clearRect(0,0,W,H);
+
+  const bg = portalCtx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.7);
+  bg.addColorStop(0,'#060f1e1a'); bg.addColorStop(1,'#010408');
+  portalCtx.fillStyle=bg; portalCtx.fillRect(0,0,W,H);
+
+  rings.forEach((r,i) => {
+    const off = Math.sin(portalT*r.speed*1000+r.phase)*11;
+    const wb  = 1+Math.sin(portalT*r.speed*700+i)*0.028;
+    portalCtx.beginPath();
+    portalCtx.ellipse(cx,cy,(r.r+off)*wb,(r.r*.58+off*.5)*wb,0,0,Math.PI*2);
+    portalCtx.strokeStyle=r.col;
+    portalCtx.globalAlpha=r.opacity+Math.sin(portalT*.5+r.phase)*.018;
+    portalCtx.lineWidth=1.2; portalCtx.stroke(); portalCtx.globalAlpha=1;
+  });
+
+  stars.forEach(s => {
+    s.tw+=0.009;
+    portalCtx.beginPath();
+    portalCtx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);
+    portalCtx.fillStyle=`rgba(180,210,255,${0.12+Math.sin(s.tw)*.1})`;
+    portalCtx.fill();
+  });
+
+  const cg=portalCtx.createRadialGradient(cx,cy,0,cx,cy,130);
+  cg.addColorStop(0,'rgba(0,255,212,0.06)'); cg.addColorStop(1,'transparent');
+  portalCtx.fillStyle=cg; portalCtx.fillRect(0,0,W,H);
+  portalT+=0.016;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  KNOB DRAW
+// ═══════════════════════════════════════════════════════════════════
+function drawKnob (cvs, val, col, size) {
+  size = size || cvs.width;
+  const ctx=cvs.getContext('2d'), cx=size/2, cy=size/2, r=size/2-5;
+  ctx.clearRect(0,0,size,size);
+  const sa=Math.PI*.75, ea=Math.PI*2.25, ca=sa+(ea-sa)*val;
+
+  // Track
+  ctx.beginPath(); ctx.arc(cx,cy,r,sa,ea);
+  ctx.strokeStyle='#0e2035'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.stroke();
+
+  // Value arc
+  ctx.beginPath(); ctx.arc(cx,cy,r,sa,ca);
+  ctx.strokeStyle=col; ctx.lineWidth=3; ctx.shadowColor=col; ctx.shadowBlur=8; ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Centre dot
+  ctx.beginPath(); ctx.arc(cx,cy,2.5,0,Math.PI*2);
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=5; ctx.fill(); ctx.shadowBlur=0;
+
+  // Needle
+  const nx=cx+Math.cos(ca)*(r-4), ny=cy+Math.sin(ca)*(r-4);
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(nx,ny);
+  ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1.5; ctx.lineCap='round'; ctx.stroke();
+}
+
+function makeKnobDrag (canvas, paramID, col, getVal, setVal) {
+  let dragging=false, startY=0, startV=0;
+  canvas.addEventListener('mousedown', e=>{
+    dragging=true; startY=e.clientY; startV=getVal();
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const v=Math.max(0,Math.min(1,startV+(startY-e.clientY)/120));
+    setVal(v); drawKnob(canvas,v,col);
+    sendParam(paramID,v);
+  });
+  window.addEventListener('mouseup',()=>{ dragging=false; });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUILD SIDEBAR
+// ═══════════════════════════════════════════════════════════════════
+let activeKey = 'pr';
+
+function buildSidebar () {
+  const sidebar = document.getElementById('sidebar');
+  // Insert items before the macro section
+  const macroSec = sidebar.querySelector('.macro-sec');
+
+  MODULES.forEach(mod => {
+    const item = document.createElement('div');
+    item.className = 'mod-item' + (mod.key===activeKey?' active':'');
+    item.dataset.key = mod.key;
+    item.innerHTML = `
+      <div class="mod-orb" style="color:${mod.col};background:${mod.col}18;border-color:${mod.col}44;">${mod.emoji}</div>
+      <span class="mod-name">${mod.name}</span>
+      <div class="tog${mod.en?' on':''}" data-key="${mod.key}"></div>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('tog')) return;
+      document.querySelectorAll('.mod-item').forEach(i=>i.classList.remove('active'));
+      item.classList.add('active');
+      activeKey = mod.key;
+      selectOrb(mod.key);
+      buildInspector(mod.key);
+    });
+    item.querySelector('.tog').addEventListener('click', e => {
+      e.stopPropagation();
+      const tog = e.currentTarget;
+      mod.en = !mod.en;
+      tog.classList.toggle('on', mod.en);
+      document.querySelector(`.orb[data-key="${mod.key}"]`)?.classList.toggle('disabled',!mod.en);
+      sendModuleToggle(mod.key, mod.en);
+    });
+    sidebar.insertBefore(item, macroSec);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUILD MACRO GRID
+// ═══════════════════════════════════════════════════════════════════
+function buildMacroGrid () {
+  const grid = document.getElementById('macroGrid');
+  MACROS.forEach(mac => {
+    const cell = document.createElement('div');
+    cell.className = 'macro-cell';
+    const cvs = document.createElement('canvas');
+    cvs.width = cvs.height = 42;
+    const lbl = document.createElement('div');
+    lbl.className = 'macro-label';
+    lbl.textContent = mac.name;
+    cell.appendChild(cvs); cell.appendChild(lbl);
+    grid.appendChild(cell);
+    drawKnob(cvs, mac.val, mac.col, 42);
+    makeKnobDrag(cvs, mac.param, mac.col,
+      ()=>mac.val, v=>{ mac.val=v; });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUILD INSPECTOR
+// ═══════════════════════════════════════════════════════════════════
+function buildInspector (key) {
+  const mod = MODULES.find(m=>m.key===key);
+  if (!mod) return;
+
+  document.documentElement.style.setProperty('--mod-col', mod.col);
+  document.getElementById('inspTitle').textContent = mod.name;
+
+  const body = document.getElementById('inspBody');
+  body.innerHTML = '';
+
+  mod.params.forEach(p => {
+    const val = paramStore[p.id] ?? 0.5;
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    row.innerHTML = `
+      <div class="param-hdr">
+        <span class="param-name">${p.label}</span>
+        <span class="param-val" id="pv_${p.id}">${val.toFixed(2)}</span>
+      </div>
+      <input type="range" min="0" max="100"
+             value="${val*100}"
+             data-param="${p.id}"
+             style="--mod-col:${mod.col}"
+             oninput="onSlider(this)">
+    `;
+    body.appendChild(row);
+    updateSliderBg(row.querySelector('input'));
+  });
+}
+
+function onSlider (el) {
+  const v = el.value/100;
+  const paramID = el.dataset.param;
+  paramStore[paramID] = v;
+  updateSliderBg(el);
+  updateValLabel(el, v);
+  sendParam(paramID, v);
+}
+
+function updateSliderBg (el) {
+  const pct = ((el.value-el.min)/(el.max-el.min))*100;
+  const col  = getComputedStyle(document.documentElement)
+                .getPropertyValue('--mod-col').trim() || '#00ffd4';
+  el.style.background=`linear-gradient(to right,${col} ${pct}%,#0e2035 ${pct}%)`;
+}
+
+function updateValLabel (el, v) {
+  const lbl = document.getElementById('pv_'+el.dataset.param);
+  if (lbl) lbl.textContent = v.toFixed(2);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUILD NODE CANVAS (ORBS + CABLES)
+// ═══════════════════════════════════════════════════════════════════
+const orbEls = {};
+
+function buildCanvas () {
+  const area = document.getElementById('mainArea');
+  const svg  = document.getElementById('nodeSvg');
+
+  MODULES.forEach(mod => {
+    const orb = document.createElement('div');
+    orb.className = 'orb' + (mod.key===activeKey?' selected':'') + (!mod.en?' disabled':'');
+    orb.dataset.key = mod.key;
+    orb.style.left = (ORB_POSITIONS[mod.key][0]*100)+'%';
+    orb.style.top  = (ORB_POSITIONS[mod.key][1]*100)+'%';
+    orb.innerHTML = `
+      <div class="orb-body" style="color:${mod.col};border-color:${mod.col}50;
+           box-shadow:0 0 18px ${mod.col}1a;">
+        <span>${mod.emoji}</span>
+        <div class="orb-dot" style="color:${mod.col}"></div>
+      </div>
+      <div class="orb-lbl">${mod.name}</div>
+    `;
+
+    // Click
+    orb.addEventListener('click', () => {
+      document.querySelectorAll('.mod-item').forEach(i=>i.classList.remove('active'));
+      document.querySelector(`.mod-item[data-key="${mod.key}"]`)?.classList.add('active');
+      activeKey = mod.key;
+      selectOrb(mod.key);
+      buildInspector(mod.key);
+    });
+
+    // Drag
+    let dragging=false, offX=0, offY=0;
+    orb.addEventListener('mousedown', e => {
+      if (e.button!==0) return;
+      dragging=true;
+      const r=orb.getBoundingClientRect(), ar=area.getBoundingClientRect();
+      offX=e.clientX-r.left-r.width/2;
+      offY=e.clientY-r.top -r.height/2;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const ar=area.getBoundingClientRect();
+      const fx=Math.max(0,Math.min(1,(e.clientX-ar.left-offX)/ar.width));
+      const fy=Math.max(0,Math.min(1,(e.clientY-ar.top -offY)/ar.height));
+      ORB_POSITIONS[mod.key]=[fx,fy];
+      orb.style.left=fx*100+'%'; orb.style.top=fy*100+'%';
+      drawCables();
+    });
+    window.addEventListener('mouseup',()=>{ dragging=false; });
+
+    area.appendChild(orb);
+    orbEls[mod.key]=orb;
+  });
+
+  drawCables();
+}
+
+function selectOrb (key) {
+  document.querySelectorAll('.orb').forEach(o=>o.classList.remove('selected'));
+  orbEls[key]?.classList.add('selected');
+}
+
+function getOrbCenter (key) {
+  const orb = orbEls[key];
+  const area = document.getElementById('mainArea');
+  if (!orb||!area) return {x:0,y:0};
+  const or=orb.getBoundingClientRect(), ar=area.getBoundingClientRect();
+  return { x:or.left+or.width/2-ar.left, y:or.top+or.height/2-ar.top };
+}
+
+function drawCables () {
+  const svg = document.getElementById('nodeSvg');
+  svg.innerHTML='';
+  const area = document.getElementById('mainArea');
+  svg.setAttribute('width',  area.offsetWidth);
+  svg.setAttribute('height', area.offsetHeight);
+
+  SERIAL_CABLES.forEach(([fk,tk],i) => {
+    const p1=getOrbCenter(fk), p2=getOrbCenter(tk);
+    const dx=p2.x-p1.x;
+    const cp1x=p1.x+dx*.42, cp2x=p2.x-dx*.42;
+    const d=`M${p1.x},${p1.y} C${cp1x},${p1.y} ${cp2x},${p2.y} ${p2.x},${p2.y}`;
+    const cols=['#00ffd4','#aa44ff','#00aaff','#ffaa00','#ff3366','#ff00aa','#aaff44','#00ffaa','#88ccff'];
+    const col = cols[i%cols.length];
+
+    const glow=document.createElementNS('http://www.w3.org/2000/svg','path');
+    glow.setAttribute('d',d); glow.setAttribute('class','cable-glow');
+    glow.setAttribute('stroke',col); svg.appendChild(glow);
+
+    const line=document.createElementNS('http://www.w3.org/2000/svg','path');
+    line.setAttribute('d',d); line.setAttribute('class','cable');
+    line.setAttribute('stroke',col); svg.appendChild(line);
+
+    const flow=document.createElementNS('http://www.w3.org/2000/svg','path');
+    flow.setAttribute('d',d); flow.setAttribute('class','cable-flow');
+    flow.setAttribute('stroke',col);
+    flow.style.animationDelay=`${i*-0.22}s`;
+    svg.appendChild(flow);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SPECTRUM ANALYSER
+// ═══════════════════════════════════════════════════════════════════
+const specCanvas = document.getElementById('specCanvas');
+const specCtx    = specCanvas.getContext('2d');
+let   specData   = new Float32Array(128).fill(0);
+let   extSpecData = null;
+
+function drawSpectrum () {
+  const W=specCanvas.width=specCanvas.offsetWidth, H=specCanvas.height=specCanvas.offsetHeight;
+  if (W===0||H===0) return;
+
+  // Use data pushed from C++ if available, else animate fake data
+  if (extSpecData) {
+    for (let i=0;i<128&&i<extSpecData.length;i++)
+      specData[i]=specData[i]*.75+extSpecData[i]*.25;
+  } else {
+    for (let i=0;i<128;i++) {
+      const base=i<8?(.55+Math.random()*.3):i<22?(.35+Math.random()*.28):i<60?(.12+Math.random()*.18):(.04+Math.random()*.1);
+      specData[i]=specData[i]*.72+base*(1+Math.sin(Date.now()*.0008+i*.3)*.18)*.28;
+    }
+  }
+
+  specCtx.clearRect(0,0,W,H);
+  specCtx.fillStyle='#040a12'; specCtx.fillRect(0,0,W,H);
+
+  const bw=W/128;
+  for (let i=0;i<128;i++) {
+    const h=Math.max(1,specData[i]*H), x=i*bw, t=i/128;
+    const r=Math.round(lerp(0,119,t)), g=Math.round(lerp(255,0,t)), b=Math.round(lerp(212,255,t));
+    const gd=specCtx.createLinearGradient(0,H,0,H-h);
+    gd.addColorStop(0,`rgba(${r},${g},${b},.9)`);
+    gd.addColorStop(1,`rgba(${r},${g},${b},.2)`);
+    specCtx.fillStyle=gd;
+    specCtx.fillRect(x+.5,H-h,bw-1,h);
+  }
+  // Subtle grid
+  specCtx.strokeStyle='#0e203560';
+  [.25,.5,.75].forEach(f=>{
+    specCtx.beginPath(); specCtx.moveTo(0,H*f); specCtx.lineTo(W,H*f); specCtx.stroke();
+  });
+}
+
+function lerp(a,b,t){return a+t*(b-a);}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HEADER KNOBS
+// ═══════════════════════════════════════════════════════════════════
+function initHeaderKnobs () {
+  const mixCvs = document.getElementById('mixKnob');
+  const outCvs = document.getElementById('outKnob');
+  drawKnob(mixCvs, paramStore['master_mix'],  '#00ffd4', 38);
+  drawKnob(outCvs, paramStore['master_gain'], '#ff00aa', 38);
+  makeKnobDrag(mixCvs,'master_mix','#00ffd4',
+    ()=>paramStore['master_mix'],  v=>{ paramStore['master_mix']=v; drawKnob(mixCvs,v,'#00ffd4',38); });
+  makeKnobDrag(outCvs,'master_gain','#ff00aa',
+    ()=>paramStore['master_gain'], v=>{ paramStore['master_gain']=v; drawKnob(outCvs,v,'#ff00aa',38); });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PRESET NAV
+// ═══════════════════════════════════════════════════════════════════
+function prevPreset(){
+  presetIdx=(presetIdx-1+PRESETS.length)%PRESETS.length;
+  document.getElementById('presetName').textContent=PRESETS[presetIdx];
+  sendPreset('prev');
+}
+function nextPreset(){
+  presetIdx=(presetIdx+1)%PRESETS.length;
+  document.getElementById('presetName').textContent=PRESETS[presetIdx];
+  sendPreset('next');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════════════════
+let lastResize = 0;
+function onResize () {
+  const now = Date.now();
+  if (now-lastResize<100) return;
+  lastResize=now;
+  drawCables();
+}
+
+function loop () {
+  drawPortal();
+  drawSpectrum();
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+buildSidebar();
+buildMacroGrid();
+buildCanvas();
+buildInspector('pr');
+initHeaderKnobs();
+window.addEventListener('resize', onResize);
+loop();
+</script>
+</body>
+</html>

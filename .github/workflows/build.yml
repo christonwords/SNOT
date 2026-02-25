@@ -1,0 +1,332 @@
+name: Build SNOT Plugin
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Cancel in-progress runs on new push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ════════════════════════════════════════════════════════════════
+  #  WINDOWS  —  VST3 + Standalone
+  # ════════════════════════════════════════════════════════════════
+  build-windows:
+    name: 🪟 Windows VST3
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      # ── 1. Source ──────────────────────────────────────────────
+      - name: Checkout (with JUCE submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # ── 2. Cache JUCE so repeat builds are instant ─────────────
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-win-${{ hashFiles('JUCE/VERSION') }}
+          restore-keys: juce-win-
+
+      # ── 3. Cache CMake build dir ───────────────────────────────
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-win-${{ hashFiles('CMakeLists.txt', 'Source/**', 'Resources/**') }}
+          restore-keys: cmake-win-
+
+      # ── 4. CMake configure ─────────────────────────────────────
+      - name: CMake Configure
+        id: cmake_configure
+        run: |
+          cmake -B build `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            2>&1 | Tee-Object -FilePath configure_log.txt
+          exit $LASTEXITCODE
+
+      # ── 5. Upload configure log if configure failed ────────────
+      - name: Upload Configure Log (on failure)
+        if: failure() && steps.cmake_configure.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ERROR-Windows-Configure-Log
+          path: configure_log.txt
+
+      # ── 6. Build ───────────────────────────────────────────────
+      - name: Build
+        id: build
+        run: |
+          cmake --build build `
+            --config Release `
+            --parallel 4 `
+            2>&1 | Tee-Object -FilePath build_log.txt
+          exit $LASTEXITCODE
+
+      # ── 7. Parse and summarise errors if build failed ──────────
+      - name: Parse Build Errors
+        if: failure() && steps.build.outcome == 'failure'
+        shell: pwsh
+        run: |
+          $log = Get-Content build_log.txt -ErrorAction SilentlyContinue
+          $errors   = $log | Where-Object { $_ -match ': error C|error:' }
+          $warnings = $log | Where-Object { $_ -match ': warning C|warning:' }
+
+          # Write structured error report
+          $report = @"
+          # SNOT Build Error Report — Windows
+          **Run:** ${{ github.run_number }}
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          **Time:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+
+          ## Errors ($($errors.Count))
+          ``````
+          $($errors -join "`n")
+          ``````
+
+          ## Warnings ($($warnings.Count))
+          ``````
+          $($warnings | Select-Object -First 20 | Join-String -Separator "`n")
+          ``````
+
+          ## Full Log
+          See artifact: ERROR-Windows-Build-Log
+          "@
+
+          $report | Out-File -FilePath error_report.md -Encoding utf8
+
+          # Also print to Actions summary
+          $report >> $env:GITHUB_STEP_SUMMARY
+
+          Write-Host "Found $($errors.Count) errors, $($warnings.Count) warnings"
+
+      # ── 8. Upload error artifacts ──────────────────────────────
+      - name: Upload Build Log (on failure)
+        if: failure() && steps.build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ERROR-Windows-Build-Log
+          path: |
+            build_log.txt
+            error_report.md
+
+      # ── 9. Upload plugin artifacts (on success) ────────────────
+      - name: Upload VST3
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SNOT-Windows-VST3
+          path: build/SNOT_artefacts/Release/VST3/
+          if-no-files-found: error
+
+      - name: Upload Standalone
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SNOT-Windows-Standalone
+          path: build/SNOT_artefacts/Release/Standalone/
+          if-no-files-found: warn
+
+      # ── 10. Write success summary ──────────────────────────────
+      - name: Build Summary
+        if: success()
+        shell: pwsh
+        run: |
+          @"
+          # ✅ SNOT Windows Build Succeeded
+          **Run:** ${{ github.run_number }}
+          **Commit:** ${{ github.sha }}
+          **Artifacts:** SNOT-Windows-VST3, SNOT-Windows-Standalone
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+  # ════════════════════════════════════════════════════════════════
+  #  macOS  —  VST3 + AU (Universal: arm64 + x86_64)
+  # ════════════════════════════════════════════════════════════════
+  build-macos:
+    name: 🍎 macOS VST3 + AU
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout (with JUCE submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-mac-${{ hashFiles('JUCE/VERSION') }}
+          restore-keys: juce-mac-
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-mac-${{ hashFiles('CMakeLists.txt', 'Source/**', 'Resources/**') }}
+          restore-keys: cmake-mac-
+
+      - name: CMake Configure
+        id: cmake_configure
+        run: |
+          cmake -B build \
+            -G Xcode \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            2>&1 | tee configure_log.txt
+
+      - name: Upload Configure Log (on failure)
+        if: failure() && steps.cmake_configure.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ERROR-macOS-Configure-Log
+          path: configure_log.txt
+
+      - name: Build
+        id: build
+        run: |
+          cmake --build build \
+            --config Release \
+            --parallel 4 \
+            2>&1 | tee build_log.txt
+
+      - name: Parse Build Errors
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          ERRORS=$(grep -E "error:|fatal error:" build_log.txt || true)
+          WARNINGS=$(grep -E "warning:" build_log.txt | head -20 || true)
+          ERROR_COUNT=$(echo "$ERRORS" | grep -c . || echo 0)
+          WARN_COUNT=$(grep -c "warning:" build_log.txt || echo 0)
+
+          cat >> $GITHUB_STEP_SUMMARY << SUMMARY
+          # SNOT Build Error Report — macOS
+          **Run:** ${{ github.run_number }}
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+
+          ## Errors (${ERROR_COUNT})
+          \`\`\`
+          ${ERRORS}
+          \`\`\`
+
+          ## Warnings (first 20 of ${WARN_COUNT})
+          \`\`\`
+          ${WARNINGS}
+          \`\`\`
+
+          ## Full Log
+          See artifact: ERROR-macOS-Build-Log
+          SUMMARY
+
+          # Also write to file
+          echo "# SNOT Build Errors — macOS" > error_report.md
+          echo "Run: ${{ github.run_number }}" >> error_report.md
+          echo "Commit: ${{ github.sha }}" >> error_report.md
+          echo "" >> error_report.md
+          echo "## Errors" >> error_report.md
+          echo '```' >> error_report.md
+          echo "$ERRORS" >> error_report.md
+          echo '```' >> error_report.md
+
+      - name: Upload Build Log (on failure)
+        if: failure() && steps.build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ERROR-macOS-Build-Log
+          path: |
+            build_log.txt
+            error_report.md
+
+      - name: Upload VST3
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SNOT-macOS-VST3
+          path: build/SNOT_artefacts/Release/VST3/
+          if-no-files-found: error
+
+      - name: Upload AU
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SNOT-macOS-AU
+          path: build/SNOT_artefacts/Release/AU/
+          if-no-files-found: warn
+
+      - name: Build Summary
+        if: success()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          # ✅ SNOT macOS Build Succeeded
+          **Run:** ${{ github.run_number }}
+          **Commit:** ${{ github.sha }}
+          **Artifacts:** SNOT-macOS-VST3, SNOT-macOS-AU
+          SUMMARY
+
+  # ════════════════════════════════════════════════════════════════
+  #  ERROR DIGEST  —  runs after both jobs, posts a combined summary
+  #  even if both jobs failed
+  # ════════════════════════════════════════════════════════════════
+  error-digest:
+    name: 📋 Error Digest
+    runs-on: ubuntu-latest
+    needs: [ build-windows, build-macos ]
+    if: always()   # always runs regardless of job results
+
+    steps:
+      - name: Download all error logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ERROR-*
+          path: error-logs
+          merge-multiple: true
+
+      - name: Write combined error digest
+        run: |
+          echo "# 🔴 SNOT Build Error Digest" >> $GITHUB_STEP_SUMMARY
+          echo "**Run:** ${{ github.run_number }} | **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          WIN="${{ needs.build-windows.result }}"
+          MAC="${{ needs.build-macos.result }}"
+
+          if [ "$WIN" = "success" ]; then
+            echo "✅ Windows: passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Windows: $WIN" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$MAC" = "success" ]; then
+            echo "✅ macOS: passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ macOS: $MAC" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Print any downloaded error reports into the summary
+          if [ -d error-logs ]; then
+            for f in error-logs/*.md; do
+              if [ -f "$f" ]; then
+                echo "---" >> $GITHUB_STEP_SUMMARY
+                cat "$f" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          else
+            echo "No error logs found — both platforms built successfully." >> $GITHUB_STEP_SUMMARY
+          fi
