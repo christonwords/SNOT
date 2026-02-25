@@ -22,6 +22,11 @@ inline uint32_t operator| (MoodTag a, MoodTag b)
     return static_cast<uint32_t>(a) | static_cast<uint32_t>(b);
 }
 
+inline uint32_t operator| (uint32_t a, MoodTag b)
+{
+    return a | static_cast<uint32_t>(b);
+}
+
 inline const char* moodTagName (MoodTag t)
 {
     switch (t) {
@@ -197,7 +202,7 @@ private:
             const char* desc;
         };
 
-        static const FactoryDef defs[] =
+        const std::vector<FactoryDef> defs =
         {
             { "Abyss Gate",        MoodTag::Abyss | MoodTag::Dark | MoodTag::Ethereal,
               "Portal-deep reverb wash with slow drift. Glo trap essentials." },
@@ -247,7 +252,7 @@ private:
             preset.name   = d.name;
             preset.author = "SNOT Factory";
             preset.tags   = d.tags;
-            preset.desc   = d.desc;
+            preset.description = d.desc;
             preset.state  = apvts.copyState(); // baseline state
             allPresets.push_back (preset);
         }

@@ -161,6 +161,12 @@ public:
         return (it != nodes.end()) ? it->second.get() : nullptr;
     }
 
+    AudioNode* getNode (int id) const
+    {
+        auto it = nodes.find (id);
+        return (it != nodes.end()) ? it->second.get() : nullptr;
+    }
+
     const std::map<int, std::unique_ptr<AudioNode>>& getNodes() const { return nodes; }
     const std::vector<NodeConnection>& getConnections() const { return connections; }
     const std::vector<int>& getSortedNodeIds() const { return sortedNodeIds; }
