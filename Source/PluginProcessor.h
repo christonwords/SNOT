@@ -1,5 +1,5 @@
 #pragma once
-#include <JuceHeader.h>
+#include "JuceHeader.h"
 #include "dsp/ModuleGraph.h"
 #include "dsp/MacroEngine.h"
 #include "dsp/ModulationMatrix.h"
