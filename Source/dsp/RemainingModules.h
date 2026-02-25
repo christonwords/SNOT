@@ -1,6 +1,9 @@
 #pragma once
-#include "ModuleGraph.h"
 #include "MacroEngine.h"
+
+// Forward declaration — full definition is in ModuleGraph.h which includes us
+class ModuleGraph;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PitchSmearDelay.h
 // Delay with per-tap pitch smearing via modulated read pointer
@@ -488,7 +491,7 @@ class MidiRouter
 public:
     explicit MidiRouter (juce::AudioProcessorValueTreeState& apvts) : apvts(apvts) {}
 
-    void process (juce::MidiBuffer& midi, ModuleGraph& /*graph*/, MacroEngine& macros)
+    void process (juce::MidiBuffer& midi, MacroEngine& macros)
     {
         for (const auto metadata : midi)
         {

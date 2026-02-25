@@ -70,7 +70,7 @@ void SnotAudioProcessor::processBlock (AudioBuffer<float>& buffer,
         dryBuffer.copyFrom (ch, 0, buffer, ch, 0, buffer.getNumSamples());
 
     // MIDI routing (FX switching, macro triggers)
-    midiRouter->process (midiMessages, *moduleGraph, *macroEngine);
+    midiRouter->process (midiMessages, *macroEngine);
 
     // Modulation tick (LFOs, envelopes, macros)
     modMatrix->process (buffer.getNumSamples());
