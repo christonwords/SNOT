@@ -435,6 +435,7 @@ private:
 class GainStager
 {
 public:
+    GainStager() = default;
     void prepare (const juce::dsp::ProcessSpec& spec)
     {
         gain.prepare(spec);
