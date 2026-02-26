@@ -1,5 +1,8 @@
 #include "PluginEditor.h"
 #include <BinaryData.h>
+#if JUCE_WINDOWS
+ #include <windows.h>
+#endif
 
 using namespace juce;
 
