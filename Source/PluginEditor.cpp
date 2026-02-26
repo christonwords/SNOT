@@ -41,6 +41,16 @@ void SnotWebEditor::buildBrowser()
 {
     // Wrap HTML in a data URI and navigate — works on all JUCE 7.x versions,
     // no ResourceProvider API needed, no temp files, no filesystem access.
+    // Disable WebView2 GPU acceleration — prevents dxgi.dll crash inside DAW plugin host.
+    // WebView2 tries to create a D3D11 device which crashes in FL Studio's process.
+    // Software rendering (--disable-gpu) is stable and fast enough for plugin UI.
+   #if JUCE_WINDOWS
+    ::SetEnvironmentVariableW (L"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                               L"--disable-gpu --disable-gpu-compositing "
+                               L"--disable-software-rasterizer "
+                               L"--in-process-gpu");
+   #endif
+
     browser = std::make_unique<SnotBrowser> (*this);
     addAndMakeVisible (browser.get());
 
