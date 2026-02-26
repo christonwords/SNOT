@@ -5,32 +5,46 @@ using namespace juce;
 
 //==============================================================================
 SnotWebEditor::SnotWebEditor (SnotAudioProcessor& p)
-    : AudioProcessorEditor (&p), proc (p)
+    : AudioProcessorEditor (&p), proc (p),
+      gainAttach (p.getAPVTS(), ParamID::MASTER_GAIN, gainSlider),
+      mixAttach  (p.getAPVTS(), ParamID::MIX,         mixSlider)
 {
-    setSize (W, H);
-    setResizable (true, true);
-    setResizeLimits (900, 540, 1920, 1080);
+    // Title
+    titleLabel.setText ("SNOT", dontSendNotification);
+    titleLabel.setFont (Font (48.0f, Font::bold));
+    titleLabel.setColour (Label::textColourId, Colour (0xff00ffcc));
+    titleLabel.setJustificationType (Justification::centred);
+    addAndMakeVisible (titleLabel);
 
-    // Write the embedded HTML to a temp file so the browser can load it
-    // (WebBrowserComponent needs a file:// or http:// URL to load from)
-    writeHTMLToTemp();
+    // Status
+    statusLabel.setText ("Portal Audio Engine Active", dontSendNotification);
+    statusLabel.setFont (Font (14.0f));
+    statusLabel.setColour (Label::textColourId, Colour (0xff888888));
+    statusLabel.setJustificationType (Justification::centred);
+    addAndMakeVisible (statusLabel);
 
-    // Create browser
-    browser = std::make_unique<SnotBrowser> (*this);
-    addAndMakeVisible (*browser);
+    // Gain
+    gainSlider.setRange (0.0, 2.0);
+    gainSlider.setColour (Slider::thumbColourId,       Colour (0xff00ffcc));
+    gainSlider.setColour (Slider::rotarySliderFillColourId, Colour (0xff00ffcc));
+    gainLabel.setText ("Gain", dontSendNotification);
+    gainLabel.setColour (Label::textColourId, Colours::white);
+    gainLabel.setJustificationType (Justification::centred);
+    addAndMakeVisible (gainSlider);
+    addAndMakeVisible (gainLabel);
 
-    // Load the HTML
-    browser->goToURL ("file://" + htmlFile.getFullPathName()
-                      #if JUCE_WINDOWS
-                          .replaceCharacter ('\\', '/')
-                          .replace ("file://", "file:///")
-                      #endif
-                      );
+    // Mix
+    mixSlider.setRange (0.0, 1.0);
+    mixSlider.setColour (Slider::thumbColourId,       Colour (0xff7700ff));
+    mixSlider.setColour (Slider::rotarySliderFillColourId, Colour (0xff7700ff));
+    mixLabel.setText ("Mix", dontSendNotification);
+    mixLabel.setColour (Label::textColourId, Colours::white);
+    mixLabel.setJustificationType (Justification::centred);
+    addAndMakeVisible (mixSlider);
+    addAndMakeVisible (mixLabel);
 
-    // Listen to all APVTS parameters so we can push automation to JS
     registerParamListeners();
-
-    // 30fps timer: push spectrum data to JS
+    setSize (W, H);
     startTimerHz (30);
 }
 
@@ -38,86 +52,71 @@ SnotWebEditor::~SnotWebEditor()
 {
     stopTimer();
     unregisterParamListeners();
-
-    // Clean up temp HTML file
-    htmlFile.deleteFile();
 }
 
 //==============================================================================
-void SnotWebEditor::resized()
-{
-    browser->setBounds (getLocalBounds());
-}
-
 void SnotWebEditor::paint (Graphics& g)
 {
-    // The WebBrowserComponent fills everything.
-    // Paint a fallback black in case the browser hasn't loaded yet.
-    g.fillAll (Colour (0xff030508));
+    // Dark gradient background
+    g.fillAll (Colour (0xff0a0a0f));
+
+    // Glow ring behind title
+    g.setColour (Colour (0xff00ffcc).withAlpha (0.06f));
+    g.fillEllipse (getWidth() / 2.0f - 200, 20, 400, 200);
+
+    // Subtle grid lines
+    g.setColour (Colour (0xff1a1a2e));
+    for (int x = 0; x < getWidth(); x += 40)
+        g.drawVerticalLine (x, 0.0f, (float)getHeight());
+    for (int y = 0; y < getHeight(); y += 40)
+        g.drawHorizontalLine (y, 0.0f, (float)getWidth());
+
+    // Bottom border accent
+    g.setColour (Colour (0xff00ffcc).withAlpha (0.4f));
+    g.fillRect (0, getHeight() - 2, getWidth(), 2);
+}
+
+void SnotWebEditor::resized()
+{
+    auto area = getLocalBounds().reduced (40);
+
+    // Title at top
+    titleLabel.setBounds  (area.removeFromTop (70));
+    statusLabel.setBounds (area.removeFromTop (30));
+
+    area.removeFromTop (40); // spacing
+
+    // Two knobs side by side
+    auto knobArea = area.removeFromTop (220);
+    auto left  = knobArea.removeFromLeft (knobArea.getWidth() / 2);
+    auto right = knobArea;
+
+    gainLabel.setBounds (left.removeFromBottom (24));
+    gainSlider.setBounds (left.reduced (20, 0));
+
+    mixLabel.setBounds (right.removeFromBottom (24));
+    mixSlider.setBounds (right.reduced (20, 0));
 }
 
 //==============================================================================
 void SnotWebEditor::timerCallback()
 {
-    // Only push spectrum every 2nd frame (15fps is fine for the display)
-    if (++specFrameSkip < 2) return;
-    specFrameSkip = 0;
-
-    browser->callJS (buildSpectrumJS());
+    // Reserved for future spectrum/meter updates
 }
 
-//==============================================================================
-void SnotWebEditor::parameterChanged (const String& paramID, float newValue)
+void SnotWebEditor::parameterChanged (const String& /*paramID*/, float /*newValue*/)
 {
-    // Called on ANY thread — must marshal to message thread
-    // newValue is already normalised 0..1 from APVTS
-    const String js = "window.SNOT.updateParam('"
-                    + paramID + "',"
-                    + String (newValue, 6) + ")";
-    browser->callJS (js);
-}
-
-//==============================================================================
-String SnotWebEditor::buildSpectrumJS()
-{
-    const float* data = proc.getSpectrumData();
-
-    // Build a compact JS array string: [0.12,0.45,...]
-    // We sample every 4th bin to keep the string short (128 values)
-    String arr = "[";
-    for (int i = 0; i < SnotAudioProcessor::SPECTRUM_SIZE; i += 4)
-    {
-        if (i > 0) arr << ",";
-        arr << String (data[i], 3);
-    }
-    arr << "]";
-
-    return "window.SNOT.updateSpectrum(" + arr + ")";
-}
-
-//==============================================================================
-void SnotWebEditor::writeHTMLToTemp()
-{
-    // Write embedded binary data to a temp file
-    htmlFile = File::getSpecialLocation (File::tempDirectory)
-                   .getChildFile ("SNOT_UI_" + String (Time::currentTimeMillis()) + ".html");
-
-    htmlFile.replaceWithData (BinaryData::SNOT_UI_html,
-                               static_cast<size_t> (BinaryData::SNOT_UI_htmlSize));
+    // Sliders update automatically via APVTS attachment
 }
 
 //==============================================================================
 void SnotWebEditor::registerParamListeners()
 {
     auto& apvts = proc.getAPVTS();
-
-    // Register for every parameter so automation shows live in the UI
     const auto& params = apvts.processor.getParameters();
     for (auto* p : params)
-    {
-        if (auto* rap = dynamic_cast<juce::RangedAudioParameter*>(p))
+        if (auto* rap = dynamic_cast<RangedAudioParameter*>(p))
             apvts.addParameterListener (rap->getParameterID(), this);
-    }
 }
 
 void SnotWebEditor::unregisterParamListeners()
@@ -125,14 +124,11 @@ void SnotWebEditor::unregisterParamListeners()
     auto& apvts = proc.getAPVTS();
     const auto& params = apvts.processor.getParameters();
     for (auto* p : params)
-    {
-        if (auto* rap = dynamic_cast<juce::RangedAudioParameter*>(p))
+        if (auto* rap = dynamic_cast<RangedAudioParameter*>(p))
             apvts.removeParameterListener (rap->getParameterID(), this);
-    }
 }
 
 //==============================================================================
-// Tell the processor to use this editor
 AudioProcessorEditor* SnotAudioProcessor::createEditor()
 {
     return new SnotWebEditor (*this);

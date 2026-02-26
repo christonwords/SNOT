@@ -47,9 +47,8 @@ target_include_directories(SNOT PRIVATE
 
 # ── Definitions ───────────────────────────────────────────────────────────────
 target_compile_definitions(SNOT PUBLIC
-    JUCE_WEB_BROWSER=1
+    JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
-    JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
     JUCE_MODAL_LOOPS_PERMITTED=1
@@ -66,25 +65,6 @@ if(APPLE)
 endif()
 
 # ── Link ──────────────────────────────────────────────────────────────────────
-# ── WebView2 (Windows only) ───────────────────────────────────────────────────
-# Static linking means no WebView2Loader.dll needed next to the plugin.
-if(WIN32)
-    # The workflow runs: nuget install Microsoft.Web.WebView2 -OutputDirectory packages
-    # before cmake, so we look for it in the standard nuget output location.
-    set(WEBVIEW2_DIR "${CMAKE_SOURCE_DIR}/packages/Microsoft.Web.WebView2.1.0.2592.51")
-    if(EXISTS "${WEBVIEW2_DIR}")
-        target_include_directories(SNOT PRIVATE
-            "${WEBVIEW2_DIR}/build/native/include"
-        )
-        target_link_libraries(SNOT PRIVATE
-            "${WEBVIEW2_DIR}/build/native/x64/WebView2LoaderStatic.lib"
-        )
-        message(STATUS "SNOT | WebView2 SDK found: ${WEBVIEW2_DIR}")
-    else()
-        message(STATUS "SNOT | WebView2 SDK not found at ${WEBVIEW2_DIR} — skipping static link")
-    endif()
-endif()
-
 # Note: juce::recommended_warning_flags was removed — it doesn't exist in all
 # JUCE versions and is not required for a successful build.
 target_link_libraries(SNOT PRIVATE
