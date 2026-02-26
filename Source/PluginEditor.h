@@ -49,7 +49,8 @@ private:
     //==========================================================================
 
     std::unique_ptr<SnotBrowser> browser;
-    bool webViewReady { false };
+    bool      webViewReady { false };
+    juce::File htmlFile;  // temp copy of embedded HTML
 
     void buildBrowser();
     void handleSnotURL (const juce::String& url);
