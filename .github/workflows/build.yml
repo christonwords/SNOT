@@ -46,6 +46,12 @@ jobs:
           key: cmake-win-${{ hashFiles('CMakeLists.txt', 'Source/**', 'Resources/**') }}
           restore-keys: cmake-win-
 
+      # ── 3b. Install WebView2 SDK via NuGet (for static linking) ─
+      - name: Install WebView2 SDK
+        run: |
+          nuget install Microsoft.Web.WebView2 -Version 1.0.2592.51 -OutputDirectory packages
+        shell: pwsh
+
       # ── 4. CMake configure ─────────────────────────────────────
       - name: CMake Configure
         id: cmake_configure
