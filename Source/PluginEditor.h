@@ -3,16 +3,6 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-/**
- * SnotWebEditor
- *
- * Full HTML UI via JUCE WebBrowserComponent with Options/ResourceProvider.
- * JUCE serves SNOT_UI.html from BinaryData — no temp files, no URL hacks.
- *
- * JS → C++:  window.SNOT_sendMessage({ type, param, value })
- *              which routes through evaluateJavascript injection
- * C++ → JS:  browser->evaluateJavascript("window.SNOT.updateParam(...)")
- */
 class SnotWebEditor : public juce::AudioProcessorEditor,
                       public juce::AudioProcessorValueTreeState::Listener,
                       public juce::Timer
@@ -31,18 +21,38 @@ public:
 
 private:
     SnotAudioProcessor& proc;
-
-    // ── Native fallback (always rendered underneath) ─────────────────────────
-    // Shown if WebView fails to initialise
     juce::Label titleLabel, statusLabel;
 
-    // ── WebBrowserComponent ──────────────────────────────────────────────────
-    std::unique_ptr<juce::WebBrowserComponent> browser;
+    //==========================================================================
+    // Inner browser — intercepts snot:// navigation for JS→C++ calls
+    class SnotBrowser : public juce::WebBrowserComponent
+    {
+    public:
+        explicit SnotBrowser (SnotWebEditor& o)
+            : juce::WebBrowserComponent (juce::WebBrowserComponent::Options{}),
+              owner (o) {}
+
+        bool pageAboutToLoad (const juce::String& url) override
+        {
+            if (url.startsWith ("snot://"))
+            {
+                owner.handleSnotURL (url);
+                return false;
+            }
+            return true;
+        }
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SnotBrowser)
+    private:
+        SnotWebEditor& owner;
+    };
+    //==========================================================================
+
+    std::unique_ptr<SnotBrowser> browser;
     bool webViewReady { false };
 
     void buildBrowser();
-    void pushAllParamsToUI();
-
+    void handleSnotURL (const juce::String& url);
     void registerParamListeners();
     void unregisterParamListeners();
 
