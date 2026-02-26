@@ -4,10 +4,14 @@
 
 //==============================================================================
 /**
- * SnotWebEditor — minimal native JUCE UI
- * 
- * Temporarily replaces the WebBrowserComponent to ensure the plugin
- * loads cleanly. The full HTML UI will be restored once load is confirmed.
+ * SnotWebEditor
+ *
+ * Full HTML UI via JUCE WebBrowserComponent with Options/ResourceProvider.
+ * JUCE serves SNOT_UI.html from BinaryData — no temp files, no URL hacks.
+ *
+ * JS → C++:  window.SNOT_sendMessage({ type, param, value })
+ *              which routes through evaluateJavascript injection
+ * C++ → JS:  browser->evaluateJavascript("window.SNOT.updateParam(...)")
  */
 class SnotWebEditor : public juce::AudioProcessorEditor,
                       public juce::AudioProcessorValueTreeState::Listener,
@@ -22,18 +26,22 @@ public:
     void timerCallback() override;
     void parameterChanged (const juce::String& paramID, float newValue) override;
 
-    static constexpr int W = 800;
-    static constexpr int H = 500;
+    static constexpr int W = 1200;
+    static constexpr int H = 720;
 
 private:
     SnotAudioProcessor& proc;
 
-    // Simple knob-style slider for master controls
-    juce::Slider gainSlider  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
-    juce::Slider mixSlider   { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
-    juce::Label  gainLabel, mixLabel, titleLabel, statusLabel;
+    // ── Native fallback (always rendered underneath) ─────────────────────────
+    // Shown if WebView fails to initialise
+    juce::Label titleLabel, statusLabel;
 
-    juce::AudioProcessorValueTreeState::SliderAttachment gainAttach, mixAttach;
+    // ── WebBrowserComponent ──────────────────────────────────────────────────
+    std::unique_ptr<juce::WebBrowserComponent> browser;
+    bool webViewReady { false };
+
+    void buildBrowser();
+    void pushAllParamsToUI();
 
     void registerParamListeners();
     void unregisterParamListeners();
